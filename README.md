@@ -34,7 +34,7 @@ Workflow n8n che risponde su WhatsApp alle domande ricorrenti di una piccola att
 
 ## Versione Pro
 
-Include tre pacchetti FAQ già scritti (officina/ricambi, studio professionale, negozio), l'avviso al titolare quando serve una persona e una guida di personalizzazione. Si trova su Gumroad: vedi il link nella descrizione del repo.
+Include tre pacchetti FAQ già scritti (officina/ricambi, studio professionale, negozio), l'avviso al titolare quando serve una persona e una guida di personalizzazione. Si trova su Gumroad (12 EUR): https://chatbotter3.gumroad.com/l/whatsapp-faq-bot-n8n-pro
 
 ## Limiti noti
 
