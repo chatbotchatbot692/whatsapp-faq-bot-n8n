@@ -1,0 +1,16 @@
+{
+  "name": "generico",
+  "greeting": "Ciao! Sono l'assistente automatico di [NOME ATTIVITÀ]. Scrivimi la tua domanda: orari, indirizzo, prezzi o contatti.",
+  "fallback": "Non ho una risposta automatica a questa domanda. Ho avvisato un collega: ti risponde di persona appena possibile.",
+  "closedNote": "Siamo chiusi ora: ti rispondiamo alla riapertura ([ORARI]).",
+  "nonText": "Ho ricevuto il tuo messaggio ma l'assistente automatico legge solo il testo. Un collega lo guarderà appena possibile.",
+  "hours": { "tz": "Europe/Rome", "week": { "1": ["09:00","18:00"], "2": ["09:00","18:00"], "3": ["09:00","18:00"], "4": ["09:00","18:00"], "5": ["09:00","18:00"] } },
+  "faqs": [
+    { "id": "orari", "keywords": ["orari", "orario", "aperto", "aperti", "apertura", "chiusura", "a che ora"], "answer": "Orari: [ORARI APERTURA]." },
+    { "id": "indirizzo", "keywords": ["indirizzo", "dove siete", "dove si trova", "come arrivare", "sede", "mappa"], "answer": "Siamo in [INDIRIZZO]. Mappa: [LINK MAPPA]." },
+    { "id": "prezzi", "keywords": ["prezzo", "prezzi", "costo", "costi", "quanto costa", "tariffe", "listino"], "answer": "I prezzi dipendono dal servizio. Listino: [LINK LISTINO]. Per un importo preciso scrivici cosa ti serve." },
+    { "id": "preventivo", "keywords": ["preventivo", "preventivi", "stima", "offerta"], "answer": "Per un preventivo gratuito scrivici: cosa ti serve, quantità/misure e entro quando. Rispondiamo entro [TEMPI RISPOSTA]." },
+    { "id": "pagamenti", "keywords": ["pagamento", "pagamenti", "pagare", "carta", "bonifico", "contanti", "rate"], "answer": "Accettiamo: [METODI DI PAGAMENTO]." },
+    { "id": "contatti", "keywords": ["telefono", "telefonare", "chiamare", "email", "mail", "contatti", "numero"], "answer": "Telefono: [TELEFONO]. Email: [EMAIL]." }
+  ]
+}

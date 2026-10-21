@@ -1,0 +1,27 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "0000000000000000",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "390000000000", "phone_number_id": "111111111111111" },
+            "contacts": [ { "profile": { "name": "Mario Rossi" }, "wa_id": "393331234567" } ],
+            "messages": [
+              {
+                "from": "393331234567",
+                "id": "wamid.TEST1",
+                "timestamp": "1790000000",
+                "type": "text",
+                "text": { "body": "Buongiorno, a che ora siete aperti oggi?" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

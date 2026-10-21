@@ -1,0 +1,193 @@
+{
+  "name": "WhatsApp FAQ bot - generico (Free)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n-verify-in",
+      "name": "Verifica webhook (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5b1d6a10-0000-4000-8000-000000000001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "n-verify-if-c",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "[VERIFY_TOKEN]",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-verify-if",
+      "name": "Token valido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "id": "n-verify-ok",
+      "name": "Rispondi challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "n-verify-ko",
+      "name": "Rispondi 403",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "n-msg-in",
+      "name": "Messaggio WhatsApp (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "5b1d6a10-0000-4000-8000-000000000002"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Matcher FAQ + orari + parsing webhook WhatsApp Cloud API. Nessuna dipendenza.\n// Lo stesso testo viene incorporato nel nodo Code di n8n da build.js.\n\nfunction normalize(s) {\n  return String(s || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^a-z0-9\\s]/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\n// Punteggio: frase chiave presente = 2, parola chiave singola presente = 1 (confronto per parola intera).\nfunction matchFaq(text, faqs, minScore) {\n  const min = minScore || 1;\n  const norm = ' ' + normalize(text) + ' ';\n  let best = null, bestScore = 0;\n  for (const faq of faqs) {\n    let score = 0;\n    for (const kw of faq.keywords) {\n      const k = normalize(kw);\n      if (k && norm.indexOf(' ' + k + ' ') !== -1) score += k.indexOf(' ') !== -1 ? 2 : 1;\n    }\n    if (score > bestScore) { best = faq; bestScore = score; }\n  }\n  return bestScore >= min ? best : null;\n}\n\n// hours: { tz: 'Europe/Rome', week: { '1': ['09:00','18:00'], ... } }  (1 = lunedi, 7 = domenica; giorno assente = chiuso)\nfunction isOpen(date, hours) {\n  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: hours.tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })\n    .formatToParts(date).reduce((o, p) => (o[p.type] = p.value, o), {});\n  const day = { Mon: '1', Tue: '2', Wed: '3', Thu: '4', Fri: '5', Sat: '6', Sun: '7' }[parts.weekday];\n  const slots = hours.week[day];\n  if (!slots) return false;\n  const now = (parts.hour === '24' ? '00' : parts.hour) + ':' + parts.minute;\n  return now >= slots[0] && now < slots[1];\n}\n\n// Estrae il primo messaggio di testo dal payload del webhook; null per stati di consegna e tipi non testuali.\nfunction parseIncoming(body) {\n  try {\n    const value = body.entry[0].changes[0].value;\n    const msg = value.messages && value.messages[0];\n    if (!msg) return null;\n    const text = msg.type === 'text' ? msg.text.body : '';\n    return { from: msg.from, id: msg.id, type: msg.type, text, phoneNumberId: value.metadata.phone_number_id };\n  } catch (e) { return null; }\n}\n\n// Decide la risposta. cfg: { faqs, hours, fallback, closedNote, nonText, greeting }\nfunction buildReply(incoming, cfg, now) {\n  if (!incoming) return null;\n  let reply, handoff = false;\n  if (incoming.type !== 'text') {\n    reply = cfg.nonText; handoff = true;\n  } else {\n    const faq = matchFaq(incoming.text, cfg.faqs);\n    if (faq) reply = faq.answer;\n    else { reply = cfg.fallback; handoff = true; }\n  }\n  if (handoff && cfg.hours && !isOpen(now || new Date(), cfg.hours)) reply += '\\n\\n' + cfg.closedNote;\n  return { to: incoming.from, phoneNumberId: incoming.phoneNumberId, reply, handoff };\n}\n\n\n\nconst cfg = {\n  \"name\": \"generico\",\n  \"greeting\": \"Ciao! Sono l'assistente automatico di [NOME ATTIVITÀ]. Scrivimi la tua domanda: orari, indirizzo, prezzi o contatti.\",\n  \"fallback\": \"Non ho una risposta automatica a questa domanda. Ho avvisato un collega: ti risponde di persona appena possibile.\",\n  \"closedNote\": \"Siamo chiusi ora: ti rispondiamo alla riapertura ([ORARI]).\",\n  \"nonText\": \"Ho ricevuto il tuo messaggio ma l'assistente automatico legge solo il testo. Un collega lo guarderà appena possibile.\",\n  \"hours\": {\n    \"tz\": \"Europe/Rome\",\n    \"week\": {\n      \"1\": [\n        \"09:00\",\n        \"18:00\"\n      ],\n      \"2\": [\n        \"09:00\",\n        \"18:00\"\n      ],\n      \"3\": [\n        \"09:00\",\n        \"18:00\"\n      ],\n      \"4\": [\n        \"09:00\",\n        \"18:00\"\n      ],\n      \"5\": [\n        \"09:00\",\n        \"18:00\"\n      ]\n    }\n  },\n  \"faqs\": [\n    {\n      \"id\": \"orari\",\n      \"keywords\": [\n        \"orari\",\n        \"orario\",\n        \"aperto\",\n        \"aperti\",\n        \"apertura\",\n        \"chiusura\",\n        \"a che ora\"\n      ],\n      \"answer\": \"Orari: [ORARI APERTURA].\"\n    },\n    {\n      \"id\": \"indirizzo\",\n      \"keywords\": [\n        \"indirizzo\",\n        \"dove siete\",\n        \"dove si trova\",\n        \"come arrivare\",\n        \"sede\",\n        \"mappa\"\n      ],\n      \"answer\": \"Siamo in [INDIRIZZO]. Mappa: [LINK MAPPA].\"\n    },\n    {\n      \"id\": \"prezzi\",\n      \"keywords\": [\n        \"prezzo\",\n        \"prezzi\",\n        \"costo\",\n        \"costi\",\n        \"quanto costa\",\n        \"tariffe\",\n        \"listino\"\n      ],\n      \"answer\": \"I prezzi dipendono dal servizio. Listino: [LINK LISTINO]. Per un importo preciso scrivici cosa ti serve.\"\n    },\n    {\n      \"id\": \"preventivo\",\n      \"keywords\": [\n        \"preventivo\",\n        \"preventivi\",\n        \"stima\",\n        \"offerta\"\n      ],\n      \"answer\": \"Per un preventivo gratuito scrivici: cosa ti serve, quantità/misure e entro quando. Rispondiamo entro [TEMPI RISPOSTA].\"\n    },\n    {\n      \"id\": \"pagamenti\",\n      \"keywords\": [\n        \"pagamento\",\n        \"pagamenti\",\n        \"pagare\",\n        \"carta\",\n        \"bonifico\",\n        \"contanti\",\n        \"rate\"\n      ],\n      \"answer\": \"Accettiamo: [METODI DI PAGAMENTO].\"\n    },\n    {\n      \"id\": \"contatti\",\n      \"keywords\": [\n        \"telefono\",\n        \"telefonare\",\n        \"chiamare\",\n        \"email\",\n        \"mail\",\n        \"contatti\",\n        \"numero\"\n      ],\n      \"answer\": \"Telefono: [TELEFONO]. Email: [EMAIL].\"\n    }\n  ]\n};\nconst incoming = parseIncoming($input.first().json.body);\nconst r = buildReply(incoming, cfg, new Date());\nif (!r) return [];\nreturn [{ json: Object.assign({}, r, { text: incoming.text }) }];\n"
+      },
+      "id": "n-faq",
+      "name": "FAQ e orari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: \"whatsapp\", to: $json.to, type: \"text\", text: { body: $json.reply } }) }}",
+        "options": {}
+      },
+      "id": "n-reply",
+      "name": "Invia risposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Verifica webhook (GET)": {
+      "main": [
+        [
+          {
+            "node": "Token valido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido?": {
+      "main": [
+        [
+          {
+            "node": "Rispondi challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rispondi 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messaggio WhatsApp (POST)": {
+      "main": [
+        [
+          {
+            "node": "FAQ e orari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FAQ e orari": {
+      "main": [
+        [
+          {
+            "node": "Invia risposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
